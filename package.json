@@ -1,0 +1,48 @@
+{
+  "name": "zip-fill",
+  "version": "1.0.0",
+  "description": "Lightweight US address autocomplete from zip codes. Enter a zip → get city, state, county automatically.",
+  "main": "src/index.js",
+  "module": "src/index.js",
+  "types": "src/index.d.ts",
+  "files": [
+    "src/",
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build:data": "node scripts/build-data.js",
+    "build": "npm run build:data",
+    "start": "node api/server.js",
+    "dev": "node api/server.js",
+    "demo": "npx serve .",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "zip",
+    "zipcode",
+    "address",
+    "autocomplete",
+    "autofill",
+    "city",
+    "state",
+    "usa",
+    "form",
+    "input"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "bugs": {
+    "url": ""
+  },
+  "homepage": "",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1"
+  }
+}

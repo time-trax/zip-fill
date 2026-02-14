@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZipFill Demo - US Address Autocomplete</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      max-width: 500px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+    }
+    
+    p.subtitle {
+      color: #666;
+      margin-bottom: 30px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+      color: #333;
+    }
+    
+    input, select {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: border-color 0.2s;
+    }
+    
+    input:focus, select:focus {
+      outline: none;
+      border-color: #007bff;
+    }
+    
+    input.filled {
+      background-color: #e8f5e9;
+      border-color: #4caf50;
+    }
+    
+    .row {
+      display: flex;
+      gap: 15px;
+    }
+    
+    .row .form-group {
+      flex: 1;
+    }
+    
+    .status {
+      padding: 10px 15px;
+      border-radius: 8px;
+      margin-top: 20px;
+      display: none;
+    }
+    
+    .status.success {
+      display: block;
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+    
+    .status.error {
+      display: block;
+      background: #ffebee;
+      color: #c62828;
+    }
+    
+    .status.info {
+      display: block;
+      background: #e3f2fd;
+      color: #1565c0;
+    }
+    
+    #city-select {
+      display: none;
+    }
+    
+    .instructions {
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 30px;
+      border-left: 4px solid #007bff;
+    }
+    
+    .instructions h3 {
+      margin-top: 0;
+      color: #007bff;
+    }
+    
+    code {
+      background: #f5f5f5;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <h1>📮 ZipFill</h1>
+  <p class="subtitle">Enter a zip code to auto-fill city and state</p>
+  
+  <div class="instructions">
+    <h3>Try it out</h3>
+    <p>Enter any US zip code below. The city and state will fill automatically.</p>
+    <p>Try: <code>90210</code>, <code>10001</code>, <code>60601</code>, <code>98101</code></p>
+  </div>
+  
+  <form id="address-form">
+    <div class="row">
+      <div class="form-group" style="flex: 0 0 150px;">
+        <label for="zip">Zip Code</label>
+        <input type="text" id="zip" placeholder="12345" maxlength="5" pattern="\d{5}" inputmode="numeric">
+      </div>
+    </div>
+    
+    <div class="form-group">
+      <label for="city">City</label>
+      <input type="text" id="city" placeholder="City">
+      <select id="city-select">
+        <option value="">Select city...</option>
+      </select>
+    </div>
+    
+    <div class="row">
+      <div class="form-group">
+        <label for="state">State</label>
+        <input type="text" id="state" placeholder="State" maxlength="2">
+      </div>
+      <div class="form-group">
+        <label for="county">County</label>
+        <input type="text" id="county" placeholder="County">
+      </div>
+    </div>
+    
+    <div class="form-group">
+      <label for="street">Street Address</label>
+      <input type="text" id="street" placeholder="123 Main St">
+    </div>
+  </form>
+  
+  <div id="status" class="status"></div>
+  
+  <script type="module">
+    // Import ZipFill (adjust path as needed)
+    // In production, you'd use: import ZipFill from 'zip-fill';
+    
+    class ZipFill {
+      constructor() {
+        this.data = null;
+        this.loaded = false;
+      }
+      
+      async load(url) {
+        const response = await fetch(url);
+        this.data = await response.json();
+        this.loaded = true;
+        return this;
+      }
+      
+      lookup(zip) {
+        if (!this.loaded) return null;
+        const normalizedZip = String(zip).trim().padStart(5, '0').slice(0, 5);
+        if (!/^\d{5}$/.test(normalizedZip)) return null;
+        
+        const locations = this.data[normalizedZip];
+        if (!locations) return null;
+        
+        return {
+          zip: normalizedZip,
+          locations: Array.isArray(locations) ? locations : [locations],
+          hasMultiple: Array.isArray(locations) && locations.length > 1
+        };
+      }
+    }
+    
+    const zipFill = new ZipFill();
+    const statusEl = document.getElementById('status');
+    
+    function showStatus(message, type) {
+      statusEl.textContent = message;
+      statusEl.className = 'status ' + type;
+    }
+    
+    async function init() {
+      showStatus('Loading zip code data...', 'info');
+      
+      try {
+        await zipFill.load('../dist/zip-data.min.json');
+        showStatus('Ready! Enter a zip code above.', 'success');
+        
+        // Bind to form
+        const zipInput = document.getElementById('zip');
+        const cityInput = document.getElementById('city');
+        const citySelect = document.getElementById('city-select');
+        const stateInput = document.getElementById('state');
+        const countyInput = document.getElementById('county');
+        
+        zipInput.addEventListener('input', (e) => {
+          const zip = e.target.value.trim();
+          
+          // Clear highlight when typing
+          cityInput.classList.remove('filled');
+          stateInput.classList.remove('filled');
+          countyInput.classList.remove('filled');
+          
+          if (zip.length !== 5) {
+            citySelect.style.display = 'none';
+            cityInput.style.display = '';
+            return;
+          }
+          
+          const result = zipFill.lookup(zip);
+          
+          if (!result) {
+            showStatus(`Zip code ${zip} not found`, 'error');
+            return;
+          }
+          
+          const { locations, hasMultiple } = result;
+          
+          if (hasMultiple) {
+            // Show dropdown for multiple cities
+            citySelect.innerHTML = '<option value="">Select city...</option>';
+            locations.forEach((loc, i) => {
+              const opt = document.createElement('option');
+              opt.value = i;
+              opt.textContent = `${loc.city}, ${loc.state}`;
+              citySelect.appendChild(opt);
+            });
+            citySelect.style.display = '';
+            cityInput.style.display = 'none';
+            showStatus(`${locations.length} cities found for ${zip}. Select one.`, 'info');
+          } else {
+            // Single city - auto-fill
+            const loc = locations[0];
+            cityInput.value = loc.city;
+            stateInput.value = loc.state;
+            countyInput.value = loc.county;
+            
+            cityInput.classList.add('filled');
+            stateInput.classList.add('filled');
+            countyInput.classList.add('filled');
+            
+            citySelect.style.display = 'none';
+            cityInput.style.display = '';
+            
+            showStatus(`✓ Found: ${loc.city}, ${loc.state}`, 'success');
+          }
+        });
+        
+        citySelect.addEventListener('change', () => {
+          const zip = zipInput.value.trim();
+          const result = zipFill.lookup(zip);
+          if (!result) return;
+          
+          const idx = parseInt(citySelect.value, 10);
+          if (isNaN(idx)) return;
+          
+          const loc = result.locations[idx];
+          cityInput.value = loc.city;
+          stateInput.value = loc.state;
+          countyInput.value = loc.county;
+          
+          stateInput.classList.add('filled');
+          countyInput.classList.add('filled');
+          
+          showStatus(`✓ Selected: ${loc.city}, ${loc.state}`, 'success');
+        });
+        
+      } catch (e) {
+        showStatus('Failed to load zip data: ' + e.message, 'error');
+        console.error(e);
+      }
+    }
+    
+    init();
+  </script>
+</body>
+</html>
