@@ -14,6 +14,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const metrics = require('./metrics');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -38,9 +39,16 @@ try {
 app.use(cors());
 app.use(express.json());
 
-// Request logging
+// Request logging + metrics
 app.use((req, res, next) => {
+  const start = Date.now();
   console.log(`${new Date().toISOString()} ${req.method} ${req.path}`);
+  
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    metrics.recordRequest(req, res, duration);
+  });
+  
   next();
 });
 
@@ -56,22 +64,29 @@ function normalizeZip(zip) {
 /**
  * Lookup a zip code
  */
-function lookupZip(zip) {
+function lookupZip(zip, track = true) {
   const normalized = normalizeZip(zip);
   if (!normalized) {
-    return { error: 'Invalid zip code format', zip };
+    const result = { error: 'Invalid zip code format', zip };
+    if (track) metrics.recordLookup(zip, result);
+    return result;
   }
   
   const locations = zipData[normalized];
   if (!locations) {
-    return { error: 'Zip code not found', zip: normalized };
+    const result = { error: 'Zip code not found', zip: normalized };
+    if (track) metrics.recordLookup(normalized, result);
+    return result;
   }
   
-  return {
+  const result = {
     zip: normalized,
     locations: Array.isArray(locations) ? locations : [locations],
     hasMultiple: Array.isArray(locations) && locations.length > 1
   };
+  
+  if (track) metrics.recordLookup(normalized, result);
+  return result;
 }
 
 // Health check
@@ -81,6 +96,16 @@ app.get('/health', (req, res) => {
     zipCodes: Object.keys(zipData).length,
     states: states.length
   });
+});
+
+// Metrics endpoints
+app.get('/metrics', (req, res) => {
+  res.json(metrics.getSummary());
+});
+
+app.get('/metrics/prometheus', (req, res) => {
+  res.set('Content-Type', 'text/plain');
+  res.send(metrics.getPrometheus());
 });
 
 // API info

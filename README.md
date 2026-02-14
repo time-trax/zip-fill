@@ -228,6 +228,8 @@ npm start
 | POST | `/api/batch` | Batch lookup (up to 100) |
 | GET | `/api/states` | List all states |
 | GET | `/health` | Health check |
+| GET | `/metrics` | Usage metrics (JSON) |
+| GET | `/metrics/prometheus` | Prometheus format |
 
 ### Examples
 
@@ -248,6 +250,47 @@ curl https://api.example.com/api/lookup/90210
 curl -X POST https://api.example.com/api/batch \
   -H "Content-Type: application/json" \
   -d '{"zips": ["90210", "10001", "60601"]}'
+```
+
+### Metrics & Monitoring
+
+The API includes built-in metrics tracking:
+
+```bash
+# JSON metrics dashboard
+curl https://api.example.com/metrics
+
+# Response
+{
+  "uptime": { "ms": 3600000, "formatted": "1h 0m" },
+  "requests": {
+    "total": 1542,
+    "perHour": 1542,
+    "byEndpoint": { "/api/lookup/:zip": 1200, "/api/batch": 42 },
+    "byStatus": { "200": 1400, "404": 142 }
+  },
+  "responseTimes": {
+    "avg": 12.5,
+    "p50": 8,
+    "p95": 35,
+    "p99": 89
+  },
+  "lookups": {
+    "total": 1250,
+    "found": 1108,
+    "notFound": 142,
+    "hitRate": 89,
+    "topZips": [{ "key": "90210", "count": 45 }, ...],
+    "topStates": [{ "key": "CA", "count": 320 }, ...]
+  },
+  "traffic": {
+    "last24h": 1542,
+    "hourly": [{ "hour": "00:00", "requests": 12 }, ...]
+  }
+}
+
+# Prometheus format (for Grafana, etc.)
+curl https://api.example.com/metrics/prometheus
 ```
 
 ### Deploy with Docker
